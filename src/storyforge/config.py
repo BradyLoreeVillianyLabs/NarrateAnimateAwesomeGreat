@@ -37,6 +37,8 @@ class Settings:
     poll_seconds: int
     use_flow_subscription: bool
     paid_api_enabled: bool
+    studio_host: str
+    studio_port: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -50,6 +52,8 @@ class Settings:
             poll_seconds=max(1, int(env("STORYFORGE_POLL_SECONDS", "10"))),
             use_flow_subscription=env_bool("STORYFORGE_USE_FLOW_SUBSCRIPTION", True),
             paid_api_enabled=env_bool("STORYFORGE_ENABLE_PAID_API", False),
+            studio_host=env("STORYFORGE_STUDIO_HOST", "127.0.0.1"),
+            studio_port=max(1, min(65535, int(env("STORYFORGE_STUDIO_PORT", "8766")))),
         )
 
 
