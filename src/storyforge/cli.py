@@ -8,6 +8,7 @@ from .upscale import upscale
 from .generate import generate_project
 from .config import Settings, masked_provider_status
 from .director import inspect_project, estimate_project, write_director_plan
+from .flow_export import export_flow_packets
 
 
 def parse_scene_ids(value: str | None):
@@ -28,9 +29,10 @@ def main():
     p = sp.add_parser('director'); p.add_argument('project'); p.add_argument('--cloud-first', action='store_true')
     p = sp.add_parser('cost'); p.add_argument('project'); p.add_argument('--cloud-first', action='store_true')
     p = sp.add_parser('prompts'); p.add_argument('project')
+    p = sp.add_parser('flow-pack'); p.add_argument('project')
     p = sp.add_parser('generate')
     p.add_argument('project')
-    p.add_argument('--provider', choices=['manual','veo','runway'], default=None)
+    p.add_argument('--provider', choices=['flow','manual','veo','runway'], default=None)
     p.add_argument('--scenes', help='Comma-separated scene IDs, e.g. 1,4,7')
     p.add_argument('--dry-run', action='store_true')
     p = sp.add_parser('render'); p.add_argument('project'); p.add_argument('--no-captions', action='store_true')
@@ -62,6 +64,8 @@ def main():
         print(json.dumps(estimate_project(Path(a.project), prefer_local=not a.cloud_first), indent=2))
     elif a.cmd == 'prompts':
         export_prompts(Path(a.project))
+    elif a.cmd == 'flow-pack':
+        print(json.dumps(export_flow_packets(Path(a.project)), indent=2))
     elif a.cmd == 'generate':
         provider = a.provider or Settings.from_env().default_provider
         print(json.dumps(generate_project(Path(a.project), provider, parse_scene_ids(a.scenes), a.dry_run), indent=2, default=str))
