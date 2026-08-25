@@ -8,7 +8,14 @@ import os
 
 from .util import load_json
 
-ROUTES = {"STILL_MOTION", "LOCAL_VIDEO", "CHEAP_CLOUD", "HERO_CLOUD", "EXISTING_VIDEO"}
+ROUTES = {
+    "STILL_MOTION",
+    "LOCAL_VIDEO",
+    "FLOW_SUBSCRIPTION",
+    "CHEAP_CLOUD",
+    "HERO_CLOUD",
+    "EXISTING_VIDEO",
+}
 
 
 @dataclass
@@ -95,6 +102,7 @@ def _rate(route: str) -> float:
     defaults = {
         "STILL_MOTION": 0.0,
         "LOCAL_VIDEO": 0.0,
+        "FLOW_SUBSCRIPTION": 0.0,
         "CHEAP_CLOUD": 0.05,
         "HERO_CLOUD": 0.15,
         "EXISTING_VIDEO": 0.0,
@@ -103,6 +111,7 @@ def _rate(route: str) -> float:
         "CHEAP_CLOUD": "STORYFORGE_CHEAP_CLOUD_USD_PER_SECOND",
         "HERO_CLOUD": "STORYFORGE_HERO_CLOUD_USD_PER_SECOND",
         "LOCAL_VIDEO": "STORYFORGE_LOCAL_VIDEO_USD_PER_SECOND",
+        "FLOW_SUBSCRIPTION": "STORYFORGE_FLOW_INCREMENTAL_USD_PER_SECOND",
     }
     if route in env:
         return float(os.getenv(env[route], defaults[route]))
@@ -126,6 +135,8 @@ def route_project(project: Path, prefer_local: bool = True) -> list[SceneDecisio
     project = Path(project)
     m = _manifest(project)
     decisions: list[SceneDecision] = []
+    flow_enabled = os.getenv("STORYFORGE_USE_FLOW_SUBSCRIPTION", "1").strip().lower() in {"1", "true", "yes", "on"}
+
     for s in m.get("scenes", []):
         sid = int(s["id"])
         duration = float(s.get("duration", float(s["end"]) - float(s["start"])))
@@ -140,10 +151,12 @@ def route_project(project: Path, prefer_local: bool = True) -> list[SceneDecisio
             route, reason = "STILL_MOTION", "keyframe exists and motion demand is modest"
         elif prefer_local and keyframe and keyframe.is_file() and complexity <= 3:
             route, reason = "LOCAL_VIDEO", "moderate motion with a keyframe is suitable for local I2V"
+        elif flow_enabled:
+            route, reason = "FLOW_SUBSCRIPTION", "use included Google Flow/Veo subscription generation before billable API"
         elif importance >= 0.85 or complexity >= 5:
-            route, reason = "HERO_CLOUD", "high importance or very complex motion"
+            route, reason = "HERO_CLOUD", "Flow disabled; scene warrants premium cloud generation"
         else:
-            route, reason = "CHEAP_CLOUD", "motion benefits from generated video but premium tier is unnecessary"
+            route, reason = "CHEAP_CLOUD", "Flow disabled; use cheapest configured billable cloud provider"
 
         decisions.append(SceneDecision(
             scene_id=sid, route=route, reason=reason, duration=round(duration, 3),
@@ -170,6 +183,7 @@ def estimate_project(project: Path, prefer_local: bool = True) -> dict:
         "estimated_usd": total,
         "budget_limit_usd": limit,
         "within_budget": total <= limit,
+        "flow_subscription_enabled": os.getenv("STORYFORGE_USE_FLOW_SUBSCRIPTION", "1").strip().lower() in {"1", "true", "yes", "on"},
         "by_route": by_route,
         "decisions": [asdict(d) for d in decisions],
     }
