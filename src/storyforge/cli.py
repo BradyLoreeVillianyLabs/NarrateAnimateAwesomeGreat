@@ -29,7 +29,7 @@ def main():
     p = sp.add_parser('director'); p.add_argument('project'); p.add_argument('--cloud-first', action='store_true')
     p = sp.add_parser('cost'); p.add_argument('project'); p.add_argument('--cloud-first', action='store_true')
     p = sp.add_parser('prompts'); p.add_argument('project')
-    p = sp.add_parser('flow-pack'); p.add_argument('project')
+    p = sp.add_parser('flow-pack'); p.add_argument('project'); p.add_argument('--scenes', help='Comma-separated scene IDs')
     p = sp.add_parser('generate')
     p.add_argument('project')
     p.add_argument('--provider', choices=['flow','manual','veo','runway'], default=None)
@@ -37,6 +37,10 @@ def main():
     p.add_argument('--dry-run', action='store_true')
     p = sp.add_parser('render'); p.add_argument('project'); p.add_argument('--no-captions', action='store_true')
     p = sp.add_parser('upscale'); p.add_argument('project'); p.add_argument('--scale', type=int, choices=[2,3,4], default=2)
+    p = sp.add_parser('studio')
+    p.add_argument('--host', default='127.0.0.1')
+    p.add_argument('--port', type=int, default=8766)
+    p.add_argument('--no-browser', action='store_true')
 
     a = ap.parse_args()
     if a.cmd == 'doctor':
@@ -65,7 +69,7 @@ def main():
     elif a.cmd == 'prompts':
         export_prompts(Path(a.project))
     elif a.cmd == 'flow-pack':
-        print(json.dumps(export_flow_packets(Path(a.project)), indent=2))
+        print(json.dumps(export_flow_packets(Path(a.project), scene_ids=parse_scene_ids(a.scenes)), indent=2))
     elif a.cmd == 'generate':
         provider = a.provider or Settings.from_env().default_provider
         print(json.dumps(generate_project(Path(a.project), provider, parse_scene_ids(a.scenes), a.dry_run), indent=2, default=str))
@@ -73,6 +77,9 @@ def main():
         render(Path(a.project), not a.no_captions)
     elif a.cmd == 'upscale':
         upscale(Path(a.project), a.scale)
+    elif a.cmd == 'studio':
+        from .studio import main as studio_main
+        studio_main(host=a.host, port=a.port, open_browser=not a.no_browser)
 
 
 if __name__ == '__main__':
