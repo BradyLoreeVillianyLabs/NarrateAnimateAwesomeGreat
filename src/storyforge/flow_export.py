@@ -43,7 +43,11 @@ OUTPUT:
 """
 
 
-def export_flow_packets(project: Path, include_routes: set[str] | None = None) -> dict:
+def export_flow_packets(
+    project: Path,
+    include_routes: set[str] | None = None,
+    scene_ids: set[int] | None = None,
+) -> dict:
     project = Path(project)
     manifest = load_json(project / "work" / "manifest.json")
     decisions = {d.scene_id: d for d in route_project(project, prefer_local=True)}
@@ -55,8 +59,12 @@ def export_flow_packets(project: Path, include_routes: set[str] | None = None) -
 
     for scene in manifest.get("scenes", []):
         sid = int(scene["id"])
+        if scene_ids and sid not in scene_ids:
+            continue
         decision = decisions[sid]
-        if decision.route not in include_routes:
+        # Explicit scene selection is an intentional user/Studio request and can
+        # export any route. Bulk exports remain limited to Flow/premium candidates.
+        if not scene_ids and decision.route not in include_routes:
             continue
         packet = root / f"scene_{sid:03}"
         packet.mkdir(parents=True, exist_ok=True)
@@ -67,7 +75,9 @@ def export_flow_packets(project: Path, include_routes: set[str] | None = None) -
             copied_keyframe = packet / ("keyframe" + keyframe.suffix.lower())
             shutil.copy2(keyframe, copied_keyframe)
 
-        (packet / "prompt.txt").write_text(_prompt(scene), encoding="utf-8")
+        prompt_file = project / "work" / "prompts" / f"scene_{sid:03}.txt"
+        prompt = prompt_file.read_text(encoding="utf-8") if prompt_file.exists() else _prompt(scene)
+        (packet / "prompt.txt").write_text(prompt, encoding="utf-8")
         (packet / "OUTPUT_NAME.txt").write_text(f"scene_{sid:03}.mp4\n", encoding="utf-8")
         context = {
             "scene_id": sid,
@@ -75,10 +85,11 @@ def export_flow_packets(project: Path, include_routes: set[str] | None = None) -
             "end": scene.get("end"),
             "duration": scene.get("duration"),
             "route": decision.route,
+            "route_override": scene.get("route_override"),
             "reason": decision.reason,
             "story_text": scene.get("text", ""),
             "keyframe": copied_keyframe.name if copied_keyframe else None,
-            "return_to": f"generated/scene_{sid:03}.mp4",
+            "return_to": str(scene.get("generated_video") or f"generated/scene_{sid:03}.mp4"),
         }
         (packet / "context.json").write_text(json.dumps(context, indent=2), encoding="utf-8")
         created.append(str(packet))
