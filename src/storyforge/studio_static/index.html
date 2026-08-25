@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>StoryForge Studio</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">StoryForge Studio</div>
+      <div class="subtitle">Narration-first storyboard & timeline</div>
+    </div>
+    <div class="top-actions">
+      <select id="projectSelect"></select>
+      <button id="refreshBtn">Refresh</button>
+      <button id="validateBtn">Validate</button>
+      <button id="directorBtn">Director</button>
+      <button id="renderBtn" class="primary">Render</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary-panel">
+      <div><span class="label">Project</span><strong id="projectName">—</strong></div>
+      <div><span class="label">Duration</span><strong id="duration">—</strong></div>
+      <div><span class="label">Scenes</span><strong id="sceneCount">—</strong></div>
+      <div><span class="label">Estimated API</span><strong id="cost">—</strong></div>
+      <div><span class="label">Budget</span><strong id="budget">—</strong></div>
+      <div id="validationBadge" class="pill neutral">Not validated</div>
+    </section>
+
+    <section class="workspace">
+      <div class="left-pane">
+        <div class="preview-shell">
+          <video id="videoPreview" controls hidden></video>
+          <img id="imagePreview" alt="Scene guide preview" hidden />
+          <div id="emptyPreview" class="empty-preview">Select a scene</div>
+        </div>
+        <audio id="narration" controls></audio>
+      </div>
+
+      <aside class="inspector">
+        <div class="inspector-title">Scene Inspector</div>
+        <div id="inspectorEmpty" class="muted">Select a scene tile below.</div>
+        <div id="inspectorForm" hidden>
+          <div class="row between">
+            <strong id="sceneTitle"></strong>
+            <span id="sceneTime" class="pill"></span>
+          </div>
+
+          <label>Story text
+            <textarea id="sceneText" rows="5"></textarea>
+          </label>
+
+          <div class="grid2">
+            <label>Importance
+              <input id="importance" type="range" min="0" max="1" step="0.05" />
+              <span id="importanceValue"></span>
+            </label>
+            <label>Motion complexity
+              <select id="complexity">
+                <option value="1">1 — minimal</option>
+                <option value="2">2 — simple</option>
+                <option value="3">3 — moderate</option>
+                <option value="4">4 — difficult</option>
+                <option value="5">5 — complex</option>
+              </select>
+            </label>
+          </div>
+
+          <label>Route override
+            <select id="routeOverride"><option value="AUTO">AUTO</option></select>
+          </label>
+
+          <label>Generation prompt
+            <textarea id="prompt" rows="7" placeholder="Flow/Veo prompt for this scene"></textarea>
+          </label>
+
+          <div class="asset-row">
+            <label class="upload-card">Guide image
+              <input id="keyframeUpload" type="file" accept="image/png,image/jpeg,image/webp" />
+              <span>Choose / replace keyframe</span>
+            </label>
+            <label class="upload-card">Generated clip
+              <input id="generatedUpload" type="file" accept="video/mp4,video/quicktime,video/webm,.mkv" />
+              <span>Import scene video</span>
+            </label>
+          </div>
+
+          <div class="button-row">
+            <button id="saveSceneBtn" class="primary">Save Scene</button>
+            <button id="savePromptBtn">Save Prompt</button>
+            <button id="flowPacketBtn">Create Flow Packet</button>
+          </div>
+          <div id="sceneStatus" class="status-line"></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="timeline-section">
+      <div class="section-head">
+        <div>
+          <strong>Timeline</strong>
+          <span class="muted">width reflects narration duration</span>
+        </div>
+        <div class="legend">
+          <span>○ no image</span><span>◐ keyframe</span><span>◆ Flow/local</span><span>▶ video ready</span>
+        </div>
+      </div>
+      <div id="ruler" class="ruler"></div>
+      <div id="timeline" class="timeline"></div>
+    </section>
+
+    <section class="filmstrip-section">
+      <div class="section-head"><strong>Filmstrip</strong><span class="muted">fast visual assembly view</span></div>
+      <div id="filmstrip" class="filmstrip"></div>
+    </section>
+
+    <section class="log-section">
+      <div class="section-head"><strong>Studio Log</strong></div>
+      <pre id="log">Ready.</pre>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
