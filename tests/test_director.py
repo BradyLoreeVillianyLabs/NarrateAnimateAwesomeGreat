@@ -39,6 +39,15 @@ def test_director_prefers_free_still_for_simple_scene(tmp_path):
     assert first["estimated_usd"] == 0.0
 
 
+def test_flow_subscription_is_cloud_default_without_incremental_cost(tmp_path, monkeypatch):
+    p = make_project(tmp_path)
+    monkeypatch.setenv("STORYFORGE_USE_FLOW_SUBSCRIPTION", "1")
+    result = estimate_project(p, prefer_local=False)
+    second = result["decisions"][1]
+    assert second["route"] == "FLOW_SUBSCRIPTION"
+    assert second["estimated_usd"] == 0.0
+
+
 def test_estimator_has_budget_gate(tmp_path, monkeypatch):
     p = make_project(tmp_path)
     monkeypatch.setenv("STORYFORGE_MAX_PROJECT_GENERATION_USD", "0.01")
