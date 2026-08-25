@@ -38,8 +38,8 @@ def main():
     p = sp.add_parser('render'); p.add_argument('project'); p.add_argument('--no-captions', action='store_true')
     p = sp.add_parser('upscale'); p.add_argument('project'); p.add_argument('--scale', type=int, choices=[2,3,4], default=2)
     p = sp.add_parser('studio')
-    p.add_argument('--host', default='127.0.0.1')
-    p.add_argument('--port', type=int, default=8766)
+    p.add_argument('--host', default=None)
+    p.add_argument('--port', type=int, default=None)
     p.add_argument('--no-browser', action='store_true')
 
     a = ap.parse_args()
@@ -79,7 +79,12 @@ def main():
         upscale(Path(a.project), a.scale)
     elif a.cmd == 'studio':
         from .studio import main as studio_main
-        studio_main(host=a.host, port=a.port, open_browser=not a.no_browser)
+        settings = Settings.from_env()
+        studio_main(
+            host=a.host or settings.studio_host,
+            port=a.port or settings.studio_port,
+            open_browser=not a.no_browser,
+        )
 
 
 if __name__ == '__main__':
