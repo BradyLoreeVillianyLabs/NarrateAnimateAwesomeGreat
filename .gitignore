@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+projects/*/work/
+projects/*/output/
+projects/*/generated/*.mp4
+projects/*/narration.*
+projects/*/music/*
+projects/*/sfx/*
