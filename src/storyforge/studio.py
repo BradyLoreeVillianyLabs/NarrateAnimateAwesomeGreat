@@ -7,14 +7,13 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
-import json
 import mimetypes
 import shutil
 import webbrowser
 
 from .config import Settings
 from .director import inspect_project, estimate_project, write_director_plan, ROUTES
-from .flow_packets import export_flow_packets
+from .flow_export import export_flow_packets
 from .render import render
 from .util import load_json, save_json
 
@@ -54,8 +53,9 @@ def _project(name: str) -> Path:
     safe = Path(name).name
     if safe != name or safe in {"", ".", ".."}:
         raise HTTPException(400, "Invalid project name")
-    path = (_projects_root() / safe).resolve()
-    if path.parent != _projects_root():
+    root = _projects_root()
+    path = (root / safe).resolve()
+    if path.parent != root:
         raise HTTPException(400, "Invalid project path")
     if not path.exists():
         raise HTTPException(404, "Project not found")
@@ -181,15 +181,17 @@ def save_prompt(name: str, scene_id: int, body: PromptPatch):
 async def _save_upload(project: Path, scene_id: int, upload: UploadFile, kind: str) -> dict:
     manifest_path, manifest, scene = _scene(project, scene_id)
     suffix = Path(upload.filename or "").suffix.lower()
+    content_type = (upload.content_type or "").lower()
     if kind == "keyframe":
         allowed = {".png", ".jpg", ".jpeg", ".webp"}
+        if suffix not in allowed or (content_type and not content_type.startswith("image/")):
+            raise HTTPException(415, "Keyframe must be PNG/JPEG/WebP")
         directory = project / "keyframes"
-        suffix = suffix if suffix in allowed else ".png"
         filename = f"{scene_id:03}{suffix}"
         field = "keyframe"
     else:
         allowed = {".mp4", ".mov", ".mkv", ".webm"}
-        if suffix not in allowed:
+        if suffix not in allowed or (content_type and not content_type.startswith("video/") and suffix != ".mkv"):
             raise HTTPException(415, "Generated clip must be mp4/mov/mkv/webm")
         directory = project / "generated"
         filename = f"scene_{scene_id:03}{suffix}"
@@ -216,8 +218,8 @@ async def upload_generated(name: str, scene_id: int, file: UploadFile = File(...
 @app.post("/api/projects/{name}/scenes/{scene_id}/flow-packet")
 def flow_packet(name: str, scene_id: int):
     project = _project(name)
-    paths = export_flow_packets(project, scene_ids={scene_id})
-    return {"created": [str(p) for p in paths]}
+    result = export_flow_packets(project, scene_ids={scene_id})
+    return result
 
 
 @app.post("/api/projects/{name}/render")
