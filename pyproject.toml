@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "narrate-animate-awesome-great"
-version = "0.2.0"
+version = "0.3.0"
 description = "Narration-first story to YouTube video pipeline"
 requires-python = ">=3.10"
 dependencies = [
@@ -17,13 +17,18 @@ whisper = ["faster-whisper>=1.1.0"]
 veo = ["google-genai>=1.0"]
 runway = ["runwayml>=3.0"]
 mcp = ["mcp>=2.0.0"]
+studio = ["fastapi>=0.116", "uvicorn>=0.35", "python-multipart>=0.0.20"]
 cloud = ["google-genai>=1.0", "runwayml>=3.0"]
-all = ["faster-whisper>=1.1.0", "google-genai>=1.0", "runwayml>=3.0", "mcp>=2.0.0"]
-dev = ["pytest>=8.0"]
+all = ["faster-whisper>=1.1.0", "google-genai>=1.0", "runwayml>=3.0", "mcp>=2.0.0", "fastapi>=0.116", "uvicorn>=0.35", "python-multipart>=0.0.20"]
+dev = ["pytest>=8.0", "fastapi>=0.116", "uvicorn>=0.35", "python-multipart>=0.0.20", "httpx>=0.28"]
 
 [project.scripts]
 storyforge = "storyforge.cli:main"
 storyforge-mcp = "storyforge.mcp_server:main"
+storyforge-studio = "storyforge.studio:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+storyforge = ["studio_static/*.html", "studio_static/*.css", "studio_static/*.js"]
