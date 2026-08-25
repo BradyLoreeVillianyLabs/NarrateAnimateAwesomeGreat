@@ -1,34 +1,50 @@
 # NarrateAnimateAwesomeGreat
 
-**Your story + your narrated voice + a handful of key images → a synchronized, animated, YouTube-ready movie.**
+**Your story + your narrated voice + key images → a synchronized, animated, YouTube-ready movie.**
 
-NarrateAnimateAwesomeGreat (StoryForge CLI) is a narration-first production pipeline for long-form illustrated stories. Your voice recording is the **master clock**. Story text supplies semantic structure, keyframes establish the visual identity, generated clips add motion where it matters, and FFmpeg deterministically assembles the finished film.
+NarrateAnimateAwesomeGreat (StoryForge) is a narration-first long-form illustrated-video pipeline. Your recording is the **master clock**. Story text supplies semantic structure, keyframes establish visual identity, generated clips add motion where it matters, and FFmpeg deterministically assembles the film.
 
-The goal is not to pay a video model to generate every second. The goal is to spend generation credits where motion improves the story and let local rendering handle the rest.
+The project is also structured as a **VS Code multi-agent workspace**:
 
-## Pipeline
+- **Codex** reads `AGENTS.md` and acts as builder/integrator.
+- **Claude** reads `CLAUDE.md` and acts as adversarial production/code reviewer.
+- **StoryForge MCP** gives both agents the same controlled project tools.
+- **Gemini/Veo, Runway, local Wan/ComfyUI, or manual subscription workflows** can supply selected motion clips.
+- **Your local NVIDIA GPU** handles deterministic rendering and optional enhancement/upscaling.
+
+The goal is not to pay a video model to generate every second. The goal is to spend generation credits only where motion materially improves the movie.
+
+## Architecture
 
 ```text
-story.txt + narration.wav + keyframes/
-                  |
-                  v
-          narration alignment
-                  |
-                  v
-        work/manifest.json
-          /       |       \
-         /        |        \
- local keyframe  I2V      captions
-   animation    clips       / SFX
-         \        |        /
-          \       |       /
-             FFmpeg
-                |
-                v
-       youtube_master.mp4
-                |
-                v
-       optional local upscale
+                    VS CODE
+        +-----------------------------+
+        | Codex          Claude       |
+        | builder        reviewer     |
+        +-------------+---------------+
+                      |
+                 StoryForge MCP
+                      |
+ story.txt + narration.wav + keyframes/
+                      |
+                      v
+              narration alignment
+                      |
+              work/manifest.json
+                      |
+                Director / Router
+          +-----------+-----------+
+          |           |           |
+     STILL_MOTION  LOCAL_VIDEO  CLOUD_VIDEO
+          |           |           |
+          +-----------+-----------+
+                      |
+                    FFmpeg
+             narration + SFX/music
+                      |
+             youtube_master.mp4
+                      |
+              optional local upscale
 ```
 
 ## Features
@@ -38,14 +54,18 @@ story.txt + narration.wav + keyframes/
 - automatic SRT subtitles
 - cinematic pan/zoom animation for still keyframes
 - generated video automatically overrides a still scene
+- production validation/inspection
+- automatic scene routing: `STILL_MOTION`, `LOCAL_VIDEO`, `CHEAP_CLOUD`, `HERO_CLOUD`, `EXISTING_VIDEO`
+- project generation-cost estimator
+- configurable hard budget threshold
 - Google Veo provider adapter
 - isolated Runway adapter
-- zero-API/manual generation mode
+- zero-API/manual subscription workflow
 - provider-neutral generation interface
 - NVIDIA/NVENC final encode when available
 - optional Real-ESRGAN local upscale
 - background music and per-scene SFX
-- MCP server for agent/IDE automation
+- MCP server for Codex/Claude/IDE automation
 - `.env` configuration with secrets excluded from Git
 
 ## Quick start — Windows
@@ -56,7 +76,7 @@ cd NarrateAnimateAwesomeGreat
 
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[whisper,mcp]"
+pip install -e ".[whisper,mcp,dev]"
 
 copy .env.example .env
 storyforge doctor
@@ -70,22 +90,58 @@ projects/my-story/story.txt
 projects/my-story/narration.wav
 projects/my-story/keyframes/001.png
 projects/my-story/keyframes/002.png
-...
 ```
 
-Plan and render:
+Build the timeline:
 
 ```powershell
 storyforge plan projects\my-story --whisper
+storyforge validate projects\my-story
+storyforge director projects\my-story
+storyforge cost projects\my-story
 storyforge prompts projects\my-story
+```
+
+The Director writes:
+
+```text
+projects/my-story/work/director_plan.json
+```
+
+It classifies each scene and estimates generation spend before anything billable happens.
+
+Render at any point:
+
+```powershell
 storyforge render projects\my-story
 ```
 
-You already have a complete movie at this point. Scenes without generated video use animated keyframes.
+Scenes without generated video use local animated keyframes.
+
+## VS Code agent workflow
+
+Codex receives its standing instructions from `AGENTS.md`. Claude receives a deliberately different reviewer contract from `CLAUDE.md`.
+
+Recommended loop:
+
+```text
+1. You add story + narration + keyframes.
+2. Codex validates and builds the Director plan.
+3. Claude reviews continuity, pacing, prompts and unnecessary spend.
+4. Codex reproduces/verifies Claude findings and fixes justified issues.
+5. StoryForge exports generation packets.
+6. You use subscription interfaces and/or explicitly approve API jobs.
+7. Clips arrive as generated/scene_###.mp4.
+8. StoryForge renders a preview/final.
+9. Claude reviews remaining production weaknesses.
+10. Final render + local upscale.
+```
+
+See `docs/VS_CODE_AGENTS.md`.
 
 ## Add AI-generated motion
 
-Copy `.env.example` to `.env` and fill only the provider you want.
+Copy `.env.example` to `.env` and fill only providers you actually use.
 
 Check configuration without exposing keys:
 
@@ -93,75 +149,71 @@ Check configuration without exposing keys:
 storyforge providers
 ```
 
-Preview a generation batch without spending anything:
+Inspect the budget first:
+
+```bash
+storyforge cost projects/my-story
+```
+
+Preview selected API jobs without spending:
 
 ```bash
 storyforge generate projects/my-story --provider veo --scenes 1,4,8 --dry-run
 ```
 
-Then generate:
-
-```bash
-storyforge generate projects/my-story --provider veo --scenes 1,4,8
-```
-
-Or use a subscription/UI manually:
+Or use your paid subscription UI manually:
 
 ```bash
 storyforge generate projects/my-story --provider manual
 ```
 
-Put each downloaded clip at:
+Put downloaded/generated clips at:
 
 ```text
 projects/my-story/generated/scene_001.mp4
 ```
 
-Run `storyforge render` again. StoryForge substitutes it automatically.
+Re-render and StoryForge substitutes them automatically.
 
-## API configuration
+## Budget configuration
 
-See `.env.example` and `docs/PROVIDERS.md`.
+`.env` contains planning rates and the project limit:
 
-Optional installs:
-
-```bash
-pip install -e '.[veo]'
-pip install -e '.[runway]'
-pip install -e '.[mcp]'
-pip install -e '.[all]'
+```dotenv
+STORYFORGE_MAX_PROJECT_GENERATION_USD=20.00
+STORYFORGE_CHEAP_CLOUD_USD_PER_SECOND=0.05
+STORYFORGE_HERO_CLOUD_USD_PER_SECOND=0.15
+STORYFORGE_LOCAL_VIDEO_USD_PER_SECOND=0.00
 ```
 
-**Never commit `.env`.** The repository ignores it. Provider status reports only whether credentials are present, never their values.
+These are **configuration/estimate values**, not authoritative provider pricing. Update them when your actual provider/model rates change.
 
-A paid consumer AI subscription and API billing are not necessarily the same product. Verify current API quota/pricing before launching large generation batches.
+A consumer ChatGPT/Claude/Gemini subscription is not assumed to include API billing. Subscription-assisted/manual production remains a first-class workflow.
 
 ## MCP
 
-Install:
+Install and start:
 
 ```bash
 pip install -e '.[mcp]'
-```
-
-Start:
-
-```bash
 storyforge-mcp
 ```
 
-The MCP façade exposes:
+The project-scoped MCP façade exposes:
 
 - provider status
 - list/create project
-- plan project
+- inspect/validate project
+- plan narration timeline
+- build Director plan
+- estimate generation cost
 - export generation prompts
 - dry-run or execute selected scene generation
-- render project
+- render validated project
 
-Generation defaults to **dry-run through MCP** to avoid an agent accidentally burning video credits.
+Generation defaults to **dry-run through MCP**. MCP accepts project names rather than arbitrary filesystem paths.
 
-See `docs/MCP.md` for host configuration and security notes.
+See `docs/MCP.md` and `docs/VS_CODE_AGENTS.md`.
 
 ## Project layout
 
@@ -180,16 +232,18 @@ projects/my-story/
     003_door.wav
   work/
     manifest.json
+    director_plan.json
     subtitles.srt
     generation_queue.csv
     prompts/
+    reviews/
   output/
     youtube_master.mp4
 ```
 
 ## Scene manifest
 
-`work/manifest.json` is the canonical timeline. A scene resembles:
+`work/manifest.json` is the canonical timeline:
 
 ```json
 {
@@ -209,60 +263,23 @@ The renderer does not care which generator produced `scene_004.mp4`.
 
 ## Cost philosophy
 
-For a 15-minute film, do **not** automatically generate 900 seconds of cloud video. A better first target might be:
+For a 15-minute film, do **not** automatically generate 900 seconds of cloud video. A more economical production could contain roughly:
 
 ```text
 250 sec generated motion
 400 sec animated illustrations
-150 sec slow cinematic holds/pans
+150 sec cinematic holds/pans
 100 sec titles/transitions/establishing beats
 ```
 
-That is how this architecture attacks generation cost.
-
-## GTX 5060 8 GB role
-
-Use the local GPU primarily for the jobs it can do reliably:
-
-- NVENC encoding
-- tiled Real-ESRGAN enhancement
-- frame interpolation when genuinely useful
-- small/quantized local video experiments
-- ComfyUI/Wan experiments
-
-Do not make a large local diffusion model a hard dependency for finishing a movie.
-
-## Local upscale
-
-When `realesrgan-ncnn-vulkan` is installed and on PATH:
-
-```bash
-storyforge upscale projects/my-story --scale 2
-```
-
-Upscale only after rejecting broken generations. Upscaling can improve linework and texture; it cannot repair wrong faces, extra limbs or continuity mistakes.
-
-## Provider architecture
-
-Every generator implements the small contract in `src/storyforge/providers/base.py`. Cloud APIs are adapters, not the foundation of the application.
-
-That means Gemini/Veo, Runway, ComfyUI/Wan and future providers can all produce the same scene asset without rewriting the movie pipeline.
+The Director exists to make that decision scene-by-scene rather than treating every second as an API call.
 
 ## Development
 
 ```bash
 pip install -e '.[dev]'
-pytest
+python -m compileall src
+pytest -q
 ```
 
-Core rule: **the narration is the master clock and `manifest.json` is the canonical timeline.**
-
-## Documentation
-
-- `docs/PROVIDERS.md` — APIs, manual mode and provider adapters
-- `docs/MCP.md` — MCP setup and security
-- `.env.example` — all supported environment variables
-
-## License
-
-MIT. Third-party model weights, SDKs and generated assets retain their own licenses/terms.
+Agent behavior is governed by `AGENTS.md` and `CLAUDE.md`. Never commit `.env`, API credentials, private narration recordings, or paid/generated movie assets unless you intentionally want them in source control.
