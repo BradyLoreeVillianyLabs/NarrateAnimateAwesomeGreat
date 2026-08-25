@@ -9,6 +9,7 @@ from .generate import generate_project
 from .config import Settings, masked_provider_status
 from .director import inspect_project, estimate_project, write_director_plan
 from .flow_export import export_flow_packets
+from .image_packets import create_image_packets
 
 
 def parse_scene_ids(value: str | None):
@@ -29,6 +30,7 @@ def main():
     p = sp.add_parser('director'); p.add_argument('project'); p.add_argument('--cloud-first', action='store_true')
     p = sp.add_parser('cost'); p.add_argument('project'); p.add_argument('--cloud-first', action='store_true')
     p = sp.add_parser('prompts'); p.add_argument('project')
+    p = sp.add_parser('image-pack'); p.add_argument('project'); p.add_argument('--scenes', help='Comma-separated scene IDs'); p.add_argument('--overwrite', action='store_true')
     p = sp.add_parser('flow-pack'); p.add_argument('project'); p.add_argument('--scenes', help='Comma-separated scene IDs')
     p = sp.add_parser('generate')
     p.add_argument('project')
@@ -51,7 +53,7 @@ def main():
         print(json.dumps(masked_provider_status(), indent=2))
     elif a.cmd == 'init':
         q = Path(a.project)
-        [(q/d).mkdir(parents=True, exist_ok=True) for d in ['keyframes','generated','music','sfx','work','output','work/reviews']]
+        [(q/d).mkdir(parents=True, exist_ok=True) for d in ['keyframes','generated','music','sfx','work','output','work/reviews','references/characters','references/locations','references/style']]
         if not (q/'story.txt').exists():
             (q/'story.txt').write_text('Paste your story here.\n', encoding='utf-8')
     elif a.cmd == 'plan':
@@ -68,6 +70,8 @@ def main():
         print(json.dumps(estimate_project(Path(a.project), prefer_local=not a.cloud_first), indent=2))
     elif a.cmd == 'prompts':
         export_prompts(Path(a.project))
+    elif a.cmd == 'image-pack':
+        print(json.dumps(create_image_packets(Path(a.project), scene_ids=parse_scene_ids(a.scenes), overwrite=a.overwrite), indent=2))
     elif a.cmd == 'flow-pack':
         print(json.dumps(export_flow_packets(Path(a.project), scene_ids=parse_scene_ids(a.scenes)), indent=2))
     elif a.cmd == 'generate':
