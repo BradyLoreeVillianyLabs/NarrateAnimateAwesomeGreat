@@ -86,6 +86,9 @@ def inspect_project(project: Path) -> ProjectInspection:
             warnings.append(f"Scene {sid}: no generated clip or keyframe; renderer will use fallback")
         if not str(s.get("text", "")).strip():
             warnings.append(f"Scene {sid}: empty scene text")
+        override = s.get("route_override")
+        if override and override not in ROUTES:
+            errors.append(f"Scene {sid}: invalid route_override {override!r}")
 
     manifest_duration = float(m.get("duration", 0.0))
     if scenes and abs(float(scenes[-1].get("end", 0.0)) - manifest_duration) > 1.0:
@@ -144,9 +147,12 @@ def route_project(project: Path, prefer_local: bool = True) -> list[SceneDecisio
         complexity = _complexity(s)
         generated = project / str(s.get("generated_video", ""))
         keyframe = project / str(s.get("keyframe", "")) if s.get("keyframe") else None
+        override = s.get("route_override")
 
         if generated.is_file():
             route, reason = "EXISTING_VIDEO", "generated/imported clip already exists"
+        elif override in ROUTES and override != "EXISTING_VIDEO":
+            route, reason = override, "explicit scene route override"
         elif keyframe and keyframe.is_file() and complexity <= 2 and importance < 0.75:
             route, reason = "STILL_MOTION", "keyframe exists and motion demand is modest"
         elif prefer_local and keyframe and keyframe.is_file() and complexity <= 3:
