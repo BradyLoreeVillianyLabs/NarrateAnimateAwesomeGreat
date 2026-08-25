@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "narrate-animate-awesome-great"
+version = "0.1.0"
+description = "Narration-first story to YouTube video pipeline"
+requires-python = ">=3.10"
+dependencies = ["Pillow>=10.0"]
+
+[project.optional-dependencies]
+whisper = ["faster-whisper>=1.1.0"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+storyforge = "storyforge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
