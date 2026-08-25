@@ -10,11 +10,12 @@
   <header class="topbar">
     <div>
       <div class="brand">StoryForge Studio</div>
-      <div class="subtitle">Narration-first storyboard & timeline</div>
+      <div class="subtitle">Narration-first storyboard, image pre-production & timeline</div>
     </div>
     <div class="top-actions">
       <select id="projectSelect"></select>
       <button id="refreshBtn">Refresh</button>
+      <button id="imagePackAllBtn">Build Image Briefs</button>
       <button id="validateBtn">Validate</button>
       <button id="directorBtn">Director</button>
       <button id="renderBtn" class="primary">Render</button>
@@ -26,6 +27,7 @@
       <div><span class="label">Project</span><strong id="projectName">—</strong></div>
       <div><span class="label">Duration</span><strong id="duration">—</strong></div>
       <div><span class="label">Scenes</span><strong id="sceneCount">—</strong></div>
+      <div><span class="label">Approved Images</span><strong id="approvedCount">—</strong></div>
       <div><span class="label">Estimated API</span><strong id="cost">—</strong></div>
       <div><span class="label">Budget</span><strong id="budget">—</strong></div>
       <div id="validationBadge" class="pill neutral">Not validated</div>
@@ -51,8 +53,17 @@
           </div>
 
           <label>Story text
-            <textarea id="sceneText" rows="5"></textarea>
+            <textarea id="sceneText" rows="4"></textarea>
           </label>
+
+          <div class="grid2">
+            <label>Image state
+              <select id="imageState"></select>
+            </label>
+            <label>Route override
+              <select id="routeOverride"><option value="AUTO">AUTO</option></select>
+            </label>
+          </div>
 
           <div class="grid2">
             <label>Importance
@@ -61,27 +72,30 @@
             </label>
             <label>Motion complexity
               <select id="complexity">
-                <option value="1">1 — minimal</option>
-                <option value="2">2 — simple</option>
-                <option value="3">3 — moderate</option>
-                <option value="4">4 — difficult</option>
-                <option value="5">5 — complex</option>
+                <option value="1">1 — minimal</option><option value="2">2 — simple</option><option value="3">3 — moderate</option><option value="4">4 — difficult</option><option value="5">5 — complex</option>
               </select>
             </label>
           </div>
 
-          <label>Route override
-            <select id="routeOverride"><option value="AUTO">AUTO</option></select>
+          <label>Initial image brief
+            <textarea id="imagePrompt" rows="9" placeholder="Prompt for ChatGPT Images / Gemini"></textarea>
           </label>
+          <div class="button-row">
+            <button id="imagePacketBtn">Build Image Brief</button>
+            <button id="saveImagePromptBtn">Save Image Brief</button>
+            <button id="copyImagePromptBtn">Copy Image Prompt</button>
+            <button id="approveImageBtn" class="primary">Approve Image</button>
+            <button id="rejectImageBtn">Reject Image</button>
+          </div>
 
-          <label>Generation prompt
-            <textarea id="prompt" rows="7" placeholder="Flow/Veo prompt for this scene"></textarea>
+          <label>Video generation prompt
+            <textarea id="prompt" rows="6" placeholder="Flow/Veo prompt for this scene"></textarea>
           </label>
 
           <div class="asset-row">
-            <label class="upload-card">Guide image
+            <label class="upload-card">Guide image candidate
               <input id="keyframeUpload" type="file" accept="image/png,image/jpeg,image/webp" />
-              <span>Choose / replace keyframe</span>
+              <span>Choose / replace scene keyframe</span>
             </label>
             <label class="upload-card">Generated clip
               <input id="generatedUpload" type="file" accept="video/mp4,video/quicktime,video/webm,.mkv" />
@@ -91,7 +105,7 @@
 
           <div class="button-row">
             <button id="saveSceneBtn" class="primary">Save Scene</button>
-            <button id="savePromptBtn">Save Prompt</button>
+            <button id="savePromptBtn">Save Video Prompt</button>
             <button id="flowPacketBtn">Create Flow Packet</button>
           </div>
           <div id="sceneStatus" class="status-line"></div>
@@ -99,15 +113,21 @@
       </aside>
     </section>
 
+    <section class="filmstrip-section">
+      <div class="section-head"><strong>Reference Library</strong><span class="muted">canonical character, location and style anchors</span></div>
+      <div class="row">
+        <select id="referenceCategory"><option value="characters">Character</option><option value="locations">Location</option><option value="style">Style</option></select>
+        <input id="referenceName" placeholder="e.g. Milo or Garden" />
+        <input id="referenceUpload" type="file" accept="image/png,image/jpeg,image/webp" />
+        <button id="uploadReferenceBtn">Add Reference</button>
+      </div>
+      <div id="referenceStrip" class="filmstrip"></div>
+    </section>
+
     <section class="timeline-section">
       <div class="section-head">
-        <div>
-          <strong>Timeline</strong>
-          <span class="muted">width reflects narration duration</span>
-        </div>
-        <div class="legend">
-          <span>○ no image</span><span>◐ keyframe</span><span>◆ Flow/local</span><span>▶ video ready</span>
-        </div>
+        <div><strong>Timeline</strong> <span class="muted">width reflects narration duration</span></div>
+        <div class="legend"><span>○ needs image</span><span>✎ brief</span><span>◒ candidate</span><span>✓ approved</span><span>▶ video</span></div>
       </div>
       <div id="ruler" class="ruler"></div>
       <div id="timeline" class="timeline"></div>
