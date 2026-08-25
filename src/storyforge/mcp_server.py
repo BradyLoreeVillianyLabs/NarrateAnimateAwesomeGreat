@@ -13,6 +13,7 @@ from .prompts import export_prompts
 from .render import render
 from .generate import generate_project
 from .director import inspect_project, estimate_project, write_director_plan
+from .flow_export import export_flow_packets
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -32,7 +33,7 @@ def project_path(name: str) -> Path:
 
 @mcp.tool()
 def provider_status() -> dict[str, bool]:
-    """Report configured video providers without exposing credentials."""
+    """Report configured/capable providers without exposing credentials."""
     return masked_provider_status()
 
 
@@ -72,7 +73,7 @@ def plan_project(name: str, whisper: bool = False) -> dict:
 
 @mcp.tool()
 def build_director_plan(name: str, prefer_local: bool = True) -> dict:
-    """Route every scene to still/local/cheap-cloud/hero-cloud and estimate spend."""
+    """Route scenes through existing/local/Flow first, with paid cloud as explicit fallback."""
     p = project_path(name)
     out = write_director_plan(p, prefer_local=prefer_local)
     result = estimate_project(p, prefer_local=prefer_local)
@@ -82,21 +83,27 @@ def build_director_plan(name: str, prefer_local: bool = True) -> dict:
 
 @mcp.tool()
 def estimate_generation_cost(name: str, prefer_local: bool = True) -> dict:
-    """Estimate generation cost using configured rates. Does not call any provider."""
+    """Estimate separately billed generation cost. Flow/local can be $0 incremental."""
     return estimate_project(project_path(name), prefer_local=prefer_local)
 
 
 @mcp.tool()
 def export_generation_prompts(name: str) -> str:
-    """Create I2V prompts and generation_queue.csv for a project."""
+    """Create provider-neutral I2V prompts and generation_queue.csv."""
     p = project_path(name)
     export_prompts(p)
     return str(p / "work" / "generation_queue.csv")
 
 
 @mcp.tool()
-def generate_scenes(name: str, provider: str = "manual", scene_ids: list[int] | None = None, dry_run: bool = True) -> list[dict]:
-    """Generate selected scenes. Defaults to dry-run to prevent accidental API spend."""
+def export_flow_subscription_packets(name: str) -> dict:
+    """Build keyframe+prompt packets for manual Google Flow/Veo subscription generation."""
+    return export_flow_packets(project_path(name))
+
+
+@mcp.tool()
+def generate_scenes(name: str, provider: str = "flow", scene_ids: list[int] | None = None, dry_run: bool = True) -> list[dict]:
+    """Generate/export selected scenes. Paid APIs are blocked unless explicitly enabled in .env."""
     return generate_project(project_path(name), provider, set(scene_ids or []) or None, dry_run=dry_run)
 
 
