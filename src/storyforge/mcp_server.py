@@ -28,7 +28,12 @@ def project_path(name: str) -> Path:
     safe = Path(name).name
     if safe != name or safe in {"", ".", ".."}:
         raise ValueError("Invalid project name")
-    return settings.projects_dir / safe
+    root = settings.projects_dir.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    path = (root / safe).resolve()
+    if path.parent != root:
+        raise ValueError("Project path escapes configured projects directory")
+    return path
 
 
 @mcp.tool()
@@ -40,7 +45,7 @@ def provider_status() -> dict[str, bool]:
 @mcp.tool()
 def list_projects() -> list[str]:
     """List StoryForge projects."""
-    root = Settings.from_env().projects_dir
+    root = Settings.from_env().projects_dir.resolve()
     if not root.exists():
         return []
     return sorted(p.name for p in root.iterdir() if p.is_dir())
@@ -68,7 +73,7 @@ def inspect_story_project(name: str) -> dict:
 def plan_project(name: str, whisper: bool = False) -> dict:
     """Align story/narration and create the canonical scene manifest."""
     m = plan(project_path(name), whisper)
-    return {"title": m["title"], "duration": m["duration"], "scenes": len(m["scenes"])}
+    return {"title": m["title"], "duration": m["duration"], "scenes": len(m["scenes"]), "alignment": m.get("alignment")}
 
 
 @mcp.tool()
@@ -96,9 +101,9 @@ def export_generation_prompts(name: str) -> str:
 
 
 @mcp.tool()
-def export_flow_subscription_packets(name: str) -> dict:
+def export_flow_subscription_packets(name: str, scene_ids: list[int] | None = None) -> dict:
     """Build keyframe+prompt packets for manual Google Flow/Veo subscription generation."""
-    return export_flow_packets(project_path(name))
+    return export_flow_packets(project_path(name), scene_ids=set(scene_ids or []) or None)
 
 
 @mcp.tool()
@@ -110,10 +115,11 @@ def generate_scenes(name: str, provider: str = "flow", scene_ids: list[int] | No
 @mcp.tool()
 def render_project(name: str, captions: bool = True) -> str:
     """Render current assets into a YouTube master."""
-    inspection = inspect_project(project_path(name))
+    project = project_path(name)
+    inspection = inspect_project(project)
     if not inspection.valid:
         raise RuntimeError("Project validation failed: " + "; ".join(inspection.errors))
-    return str(render(project_path(name), captions=captions))
+    return str(render(project, captions=captions))
 
 
 def main():
