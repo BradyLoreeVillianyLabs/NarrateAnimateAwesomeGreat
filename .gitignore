@@ -1,6 +1,10 @@
+.env
+.env.*
+!.env.example
 .venv/
 __pycache__/
 *.pyc
+.DS_Store
 projects/*/work/
 projects/*/output/
 projects/*/generated/*.mp4
