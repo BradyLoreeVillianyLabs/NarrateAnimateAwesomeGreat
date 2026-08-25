@@ -1,16 +1,18 @@
 """MCP façade for StoryForge.
 
 Run locally with `storyforge-mcp`. The server exposes safe project-level tools;
-it never returns environment secrets.
+it never returns environment secrets. Billable generation defaults to dry-run.
 """
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from .config import Settings, masked_provider_status
 from .planner import plan
 from .prompts import export_prompts
 from .render import render
 from .generate import generate_project
+from .director import inspect_project, estimate_project, write_director_plan
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -22,7 +24,6 @@ mcp = FastMCP("NarrateAnimateAwesomeGreat")
 
 def project_path(name: str) -> Path:
     settings = Settings.from_env()
-    # Project names, not arbitrary paths, are accepted over MCP.
     safe = Path(name).name
     if safe != name or safe in {"", ".", ".."}:
         raise ValueError("Invalid project name")
@@ -31,7 +32,7 @@ def project_path(name: str) -> Path:
 
 @mcp.tool()
 def provider_status() -> dict[str, bool]:
-    """Report which video providers are configured without exposing credentials."""
+    """Report configured video providers without exposing credentials."""
     return masked_provider_status()
 
 
@@ -46,14 +47,20 @@ def list_projects() -> list[str]:
 
 @mcp.tool()
 def create_project(name: str) -> str:
-    """Create a new empty story project and its standard folders."""
+    """Create an empty story project and standard folders."""
     p = project_path(name)
-    for d in ["keyframes", "generated", "music", "sfx", "work", "output"]:
+    for d in ["keyframes", "generated", "music", "sfx", "work", "work/reviews", "output"]:
         (p / d).mkdir(parents=True, exist_ok=True)
     story = p / "story.txt"
     if not story.exists():
         story.write_text("Paste your story here.\n", encoding="utf-8")
     return str(p)
+
+
+@mcp.tool()
+def inspect_story_project(name: str) -> dict:
+    """Validate project structure/timeline/assets and report warnings without changing files."""
+    return asdict(inspect_project(project_path(name)))
 
 
 @mcp.tool()
@@ -64,8 +71,24 @@ def plan_project(name: str, whisper: bool = False) -> dict:
 
 
 @mcp.tool()
+def build_director_plan(name: str, prefer_local: bool = True) -> dict:
+    """Route every scene to still/local/cheap-cloud/hero-cloud and estimate spend."""
+    p = project_path(name)
+    out = write_director_plan(p, prefer_local=prefer_local)
+    result = estimate_project(p, prefer_local=prefer_local)
+    result["plan_file"] = str(out)
+    return result
+
+
+@mcp.tool()
+def estimate_generation_cost(name: str, prefer_local: bool = True) -> dict:
+    """Estimate generation cost using configured rates. Does not call any provider."""
+    return estimate_project(project_path(name), prefer_local=prefer_local)
+
+
+@mcp.tool()
 def export_generation_prompts(name: str) -> str:
-    """Create image-to-video prompts and generation_queue.csv for a project."""
+    """Create I2V prompts and generation_queue.csv for a project."""
     p = project_path(name)
     export_prompts(p)
     return str(p / "work" / "generation_queue.csv")
@@ -79,13 +102,14 @@ def generate_scenes(name: str, provider: str = "manual", scene_ids: list[int] | 
 
 @mcp.tool()
 def render_project(name: str, captions: bool = True) -> str:
-    """Render a project's current assets into its YouTube master."""
+    """Render current assets into a YouTube master."""
+    inspection = inspect_project(project_path(name))
+    if not inspection.valid:
+        raise RuntimeError("Project validation failed: " + "; ".join(inspection.errors))
     return str(render(project_path(name), captions=captions))
 
 
 def main():
-    # FastMCP defaults to local stdio, ideal for Claude Desktop/Codex/IDE hosts.
-    # Transport can be extended to Streamable HTTP without changing tool functions.
     mcp.run()
 
 
